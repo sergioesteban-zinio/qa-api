@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 
-app = FastAPI(title="Mocked QA API")
+app = FastAPI(title="QA Shopping Cart")
 
 # --- MODELS ---
 
