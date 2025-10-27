@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 import hashlib
 
-app = FastAPI(title="Mocked QA API with Token Auth")
+app = FastAPI(title="Shopping Cart")
 
 # -----------------------------
 # STATIC CREDENTIALS AND TOKEN
