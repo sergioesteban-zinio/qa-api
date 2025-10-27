@@ -1,8 +1,8 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 
-app = FastAPI(title="QA Shopping Cart")
+app = FastAPI(title="Shopping Cart")
 
 # --- MODELS ---
 
@@ -18,12 +18,11 @@ class Specs(BaseModel):
 
 class Item(BaseModel):
     id: int
-    name: str
-    description: Optional[str] = None
-    tags: List[str] = []
+    name: str = Field(..., description="Product name (required)")
+    description: Optional[str] = Field(None, description="Short product description")
+    tags: List[str] = Field(default_factory=list)
     specs: Specs = Specs()
-    reviews: List[Review] = []
-
+    reviews: List[Review] = Field(default_factory=list)
 
 # --- INITIAL DATA ---
 
@@ -77,14 +76,40 @@ items: Dict[int, Dict[str, Any]] = {
 # --- ENDPOINTS ---
 
 @app.get("/items")
-def get_items():
-    return list(items.values())
+def get_items(
+    search: Optional[str] = Query(None, description="Search by name or description"),
+    tag: Optional[str] = Query(None, description="Filter by tag"),
+    min_rating: Optional[int] = Query(None, ge=1, le=5, description="Filter by minimum average rating"),
+):
+    """
+    Get all items, optionally filtered by search text, tag, or minimum rating.
+    """
+    results = list(items.values())
+
+    # Filter by search term
+    if search:
+        results = [i for i in results if search.lower() in i["name"].lower() or (i.get("description") and search.lower() in i["description"].lower())]
+
+    # Filter by tag
+    if tag:
+        results = [i for i in results if tag.lower() in [t.lower() for t in i.get("tags", [])]]
+
+    # Filter by average rating
+    if min_rating:
+        def avg_rating(item):
+            reviews = item.get("reviews", [])
+            return sum(r["rating"] for r in reviews) / len(reviews) if reviews else 0
+        results = [i for i in results if avg_rating(i) >= min_rating]
+
+    return results
+
 
 @app.get("/items/{item_id}")
 def get_item(item_id: int):
     if item_id not in items:
         raise HTTPException(status_code=404, detail="Item not found")
     return items[item_id]
+
 
 @app.post("/items")
 def create_item(item: Item):
@@ -93,12 +118,14 @@ def create_item(item: Item):
     items[item.id] = item.dict()
     return {"message": "Item created", "item": item}
 
+
 @app.put("/items/{item_id}")
 def update_item(item_id: int, item: Item):
     if item_id not in items:
         raise HTTPException(status_code=404, detail="Item not found")
     items[item_id] = item.dict()
     return {"message": "Item updated", "item": item}
+
 
 @app.delete("/items/{item_id}")
 def delete_item(item_id: int):
